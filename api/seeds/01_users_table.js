@@ -7,7 +7,7 @@ exports.seed = async function(knex) {
   // Deletes ALL existing entries
   await knex('users').del()
     let users = [];
-    for (let i = 0; i <= 100; i++){
+    for (let i = 0; i < 100; i++){
         const fakerFirstName = faker.person.firstName();
         const fakerLastName = faker.person.lastName();
         let currentUser = {
