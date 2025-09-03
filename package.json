@@ -1,0 +1,20 @@
+{
+  "name": "vehicle-dispatch",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/radiasian1122/vehicle-dispatch.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/radiasian1122/vehicle-dispatch/issues"
+  },
+  "homepage": "https://github.com/radiasian1122/vehicle-dispatch#readme",
+  "description": ""
+}
