@@ -12,8 +12,11 @@ exports.seed = async function(knex) {
             first_name: faker.person.firstName(),
             last_name: faker.person.lastName(),
             company: 'C',
-            platoon: `${faker.number.int({min: 1, max: 3})}C`
+            platoon: `${faker.number.int({min: 1, max: 3})}C`,
+            role: 'user'
         }
+
+        users.push(currentUser);
     }
-  await knex('users').insert([]);
+  await knex('users').insert(users);
 };

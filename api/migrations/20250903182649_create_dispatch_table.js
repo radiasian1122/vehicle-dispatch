@@ -26,4 +26,7 @@ exports.down = function(knex) {
       table.dropForeign('user_id')
       table.dropForeign('driver_id')
   })
+      .then( () => {
+          return knex.schema.dropTableIfExists('dispatch')
+      })
 };
