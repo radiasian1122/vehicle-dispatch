@@ -8,12 +8,16 @@ exports.seed = async function(knex) {
   await knex('users').del()
     let users = [];
     for (let i = 0; i <= 100; i++){
+        const fakerFirstName = faker.person.firstName();
+        const fakerLastName = faker.person.lastName();
         let currentUser = {
-            first_name: faker.person.firstName(),
-            last_name: faker.person.lastName(),
+            first_name: fakerFirstName,
+            last_name: fakerLastName,
             company: 'C',
             platoon: `${faker.number.int({min: 1, max: 3})}C`,
-            role: 'user'
+            role: 'user',
+            username:`${fakerFirstName.toLowerCase()}-${fakerLastName.toLowerCase()}`,
+            password: 'password'
         }
 
         users.push(currentUser);

@@ -10,6 +10,8 @@ exports.up = function(knex) {
       table.string('company')
       table.string('platoon')
       table.string('role')
+      table.string('username')
+      table.string('password')
   })
 };
 
