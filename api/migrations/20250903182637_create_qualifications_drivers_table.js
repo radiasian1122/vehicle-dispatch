@@ -6,9 +6,9 @@ exports.up = function(knex) {
   return knex.schema.createTable('qualifications_drivers', table => {
       table.increments()
       table.integer('driver_id')
-      table.foreign('driver_id').references('driver.id').deferrable('deferred')
+      table.foreign('driver_id').references('drivers.id').deferrable('deferred')
       table.integer('vehicle_id')
-      table.foreign('vehicle_id').references('vehicle.id').deferrable('deferred')
+      table.foreign('vehicle_id').references('vehicles.id').deferrable('deferred')
   })
 };
 
