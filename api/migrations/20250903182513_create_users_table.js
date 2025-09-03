@@ -7,7 +7,6 @@ exports.up = function(knex) {
       table.increments()
       table.string('first_name').notNullable()
       table.string('last_name').notNullable()
-      table.string('rank')
       table.string('company')
       table.string('platoon')
       table.string('role')

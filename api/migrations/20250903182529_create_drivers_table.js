@@ -9,7 +9,6 @@ exports.up = function(knex) {
       table.string("status")
       table.string('first_name')
       table.string('last_name')
-      table.string('rank')
       table.string('company')
   })
 };
