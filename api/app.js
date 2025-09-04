@@ -51,7 +51,7 @@ app.get(
   "/users",
   asyncH(async (_req, res) => {
     const rows = await knex("users").select("*").orderBy("id", "asc");
-    res.json({ data: rows });
+    res.json({ rows });
   })
 );
 
@@ -85,41 +85,17 @@ app.get(
 );
 
 //vix
-app.get(
-  "/vehicles",
-  asyncH(async (req, res) => {
-    const { serviceable, availableFrom, availableTo } = req.query;
-
-    if (availableFrom && availableTo) {
-      const rows = await knex("vehicles as v")
-        .leftJoin("dispatch as d", function () {
-          this.on("d.vehicle_id", "v.id")
-            .andOn(knex.raw(`d.status = 'APPROVED'`))
-            .andOn("d.start_time", "<", availableTo)
-            .andOn("d.end_time", ">", availableFrom);
+app.get('/vehicles', (req, res) => {
+    knex('vehicles')
+        .select("*")
+        .then( data => {
+            res.status(200).json(data)
         })
-        .modify((qb) => {
-          if (serviceable === "true") qb.where("v.is_serviceable", true);
-          if (serviceable === "false") qb.where("v.is_serviceable", false);
+        .catch( e => {
+            if (e) console.error(e);
+            res.status(400).send("Couldn't fetch vehicles")
         })
-        .whereNull("d.id")
-        .select("v.*")
-        .orderBy("v.bumper_number", "asc");
-
-      return res.json({ data: rows });
-    }
-
-    const rows = await knex("vehicles")
-      .modify((qb) => {
-        if (serviceable === "true") qb.where("is_serviceable", true);
-        if (serviceable === "false") qb.where("is_serviceable", false);
-      })
-      .select("*")
-      .orderBy("bumper_number", "asc");
-
-    res.json({ data: rows });
-  })
-);
+})
 
 //dispatch routes
 app.get(
