@@ -70,9 +70,8 @@ app.get(
 app.get(
   "/drivers/:id/quals",
   asyncH(async (req, res) => {
-    const rows = await knex("qualifications_drivers")
-      .where({ driver_id: req.params.id })
-      .select("*");
+    const rows = await knex('qualifications')
+
     res.json({ data: rows });
   })
 );
