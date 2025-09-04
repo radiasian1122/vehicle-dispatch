@@ -14,4 +14,16 @@ export function generateVehicles(){
     return vehicles;
 }
 
+export function generateDrivers(){
+    const qualDrivers = [];
+    for (let i = 0; i < 200; i++){
+        for (let j = 0; j < 9; j++){
+            qualDrivers.push({
+                driver_id: i + 1,
+                qualification_id: j + 1
+            })
+        }
+    }
+    return qualDrivers;
+}
 
