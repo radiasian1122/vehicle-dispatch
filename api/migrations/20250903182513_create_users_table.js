@@ -1,24 +1,16 @@
-/**
- * @param { import("knex").Knex } knex
- * @returns { Promise<void> }
- */
-exports.up = function(knex) {
-  return knex.schema.createTable('users', table => {
-      table.increments()
-      table.string('first_name').notNullable()
-      table.string('last_name').notNullable()
-      table.string('company')
-      table.string('platoon')
-      table.string('role')
-      table.string('username')
-      table.string('password')
-  })
-};
+// Update with your config settings.
 
 /**
- * @param { import("knex").Knex } knex
- * @returns { Promise<void> }
+ * @type { Object.<string, import("knex").Knex.Config> }
  */
-exports.down = function(knex) {
-  return knex.schema.dropTableIfExists('users');
+module.exports = {
+  development: {
+    client: "pg",
+    connection: "pg://postgres:docker@localhost:5432/backend-db",
+  },
+
+  docker: {
+    client: "pg",
+    connection: "pg://postgres:docker@database:5432/backend-db",
+  },
 };
