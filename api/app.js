@@ -197,8 +197,6 @@ app.post(
         destination: body.destination,
         purpose: body.purpose,
         status: "PENDING",
-        odometer_out: body.odometer_out ?? null,
-        fuel_out_percent: body.fuel_out_percent ?? null,
       },
       ["*"]
     );
@@ -238,9 +236,6 @@ app.put(
 
     const patch = {
       status: "APPROVED",
-      odometer_out: req.body?.odometer_out ?? existing.odometer_out,
-      fuel_out_percent: req.body?.fuel_out_percent ?? existing.fuel_out_percent,
-      updated_at: knex.fn.now(),
     };
 
     const updated = await knex("dispatch").where({ id }).update(patch, ["*"]);
