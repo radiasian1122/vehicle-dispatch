@@ -70,9 +70,17 @@ app.get(
 app.get(
   "/drivers/:id/quals",
   asyncH(async (req, res) => {
-    const rows = await knex('qualifications')
-
-    res.json({ data: rows });
+    const rows = await knex("qualifications as Q")
+        .join("qualifications_drivers as Y", "Q.id", "Y.qualification_id")
+        .join("drivers as D", "Y.driver_id", "D.id")
+        .select("Q.qualification")
+        .where("D.id", req.params.id)
+        .then( quals => {
+            return quals.map((qual) => {
+                return qual.qualification
+            })
+        })
+      res.json({ data: rows });
   })
 );
 
