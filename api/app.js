@@ -1,324 +1,867 @@
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-const knex = require("knex")(require("./knexfile.js")["docker"]);
 
+// --- DB (Knex) ---------------------------------------------
+const knexConfig = require("./knexfile")[process.env.NODE_ENV || "development"];
+const db = require("knex")(knexConfig);
+
+// --- App ---------------------------------------------------
 const app = express();
-const port = process.env.PORT || 8080;
+const PORT = process.env.PORT || 8080;
 
 app.use(cors());
 app.use(express.json());
 
-// Async handler to wrap async route functions and catch errors
-const asyncH = (fn) => (req, res, next) =>
-  Promise.resolve(fn(req, res, next)).catch(next);
+// Small helper
+const now = () => db.fn.now();
 
-function requireFields(obj, fields) {
-  const missing = fields.filter(
-    (f) => obj[f] === undefined || obj[f] === null || obj[f] === ""
-  );
-  if (missing.length) {
-    const err = new Error(`Missing required fields: ${missing.join(", ")}`);
-    err.status = 400;
-    throw err;
+// -----------------------------------------------------------
+// HEALTHCHECK
+// -----------------------------------------------------------
+app.get("/health", async (req, res) => {
+  try {
+    await db.select(db.raw("1+1 as ok")).first();
+    res.json({ ok: true, env: process.env.NODE_ENV || "development" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "DB not reachable" });
   }
-}
-
-async function hasOverlap({
-  vehicle_id,
-  start_time,
-  end_time,
-  excludeId = null,
-}) {
-  let q = knex("dispatch")
-    .where({ vehicle_id })
-    .whereIn("status", ["APPROVED"])
-    .andWhere("start_time", "<", end_time)
-    .andWhere("end_time", ">", start_time);
-
-  if (excludeId) q = q.andWhereNot("id", excludeId);
-
-  const rows = await q.select("id");
-  return rows.length > 0;
-}
-
-//check api is running
-app.get("/", (_req, res) => {
-  res.send("App is up and running.");
 });
 
-//users list
-app.get(
-  "/users",
-  asyncH(async (_req, res) => {
-    const rows = await knex("users").select("*").orderBy("id", "asc");
-    res.json({ data: rows });
-  })
-);
+// ===========================================================
+// USERS
+// ===========================================================
+app.get("/users", async (_req, res) => {
+  try {
+    const rows = await db("users").select("*").orderBy("id");
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: "Failed to fetch users" });
+  }
+});
 
-//driver's list
-app.get(
-  "/drivers",
-  asyncH(async (_req, res) => {
-    const rows = await knex("drivers")
-      .select("*")
-      .orderBy("last_name", "asc")
-      .orderBy("first_name", "asc");
-    res.json({ data: rows });
-  })
-);
+app.get("/users/:id", async (req, res) => {
+  try {
+    const row = await db("users").where({ id: req.params.id }).first();
+    if (!row) return res.status(404).json({ error: "Not found" });
+    res.json(row);
+  } catch (e) {
+    res.status(500).json({ error: "Failed to fetch user" });
+  }
+});
 
-app.get(
-  "/drivers/:id/quals",
-  asyncH(async (req, res) => {
-    const rows = await knex("qualifications as Q")
-        .join("qualifications_drivers as Y", "Q.id", "Y.qualification_id")
-        .join("drivers as D", "Y.driver_id", "D.id")
-        .select("Q.qualification")
-        .where("D.id", req.params.id)
-        .then( quals => {
-            return quals.map((qual) => {
-                return qual.qualification
-            })
-        })
-      res.json({ data: rows });
-  })
-);
-
-//vix
-app.get(
-  "/vehicles",
-  asyncH(async (req, res) => {
-    const { serviceable, availableFrom, availableTo } = req.query;
-
-    if (availableFrom && availableTo) {
-      const rows = await knex("vehicles as v")
-        .leftJoin("dispatch as d", function () {
-          this.on("d.vehicle_id", "v.id")
-            .andOn(knex.raw(`d.status = 'APPROVED'`))
-            .andOn("d.start_time", "<", availableTo)
-            .andOn("d.end_time", ">", availableFrom);
-        })
-        .modify((qb) => {
-          if (serviceable === "true") qb.where("v.is_serviceable", true);
-          if (serviceable === "false") qb.where("v.is_serviceable", false);
-        })
-        .whereNull("d.id")
-        .select("v.*")
-        .orderBy("v.bumper_number", "asc");
-
-      return res.json({ data: rows });
-    }
-
-    const rows = await knex("vehicles")
-      .modify((qb) => {
-        if (serviceable === "true") qb.where("is_serviceable", true);
-        if (serviceable === "false") qb.where("is_serviceable", false);
+app.post("/users", async (req, res) => {
+  try {
+    const {
+      first_name,
+      last_name,
+      company,
+      platoon,
+      role,
+      username,
+      password,
+    } = req.body;
+    const [created] = await db("users")
+      .insert({
+        first_name,
+        last_name,
+        company,
+        platoon,
+        role,
+        username,
+        password,
       })
-      .select("*")
-      .orderBy("bumper_number", "asc");
+      .returning("*");
+    res.status(201).json(created);
+  } catch (e) {
+    res.status(400).json({ error: "Failed to create user" });
+  }
+});
 
-    res.json({ data: rows });
-  })
-);
+app.patch("/users/:id", async (req, res) => {
+  try {
+    const [updated] = await db("users")
+      .where({ id: req.params.id })
+      .update(req.body)
+      .returning("*");
+    if (!updated) return res.status(404).json({ error: "Not found" });
+    res.json(updated);
+  } catch (e) {
+    res.status(400).json({ error: "Failed to update user" });
+  }
+});
 
-//dispatch routes
-app.get(
-  "/dispatch",
-  asyncH(async (req, res) => {
-    const { status, requested_by_user_id, vehicle_id, driver_id } = req.query;
+app.delete("/users/:id", async (req, res) => {
+  try {
+    const count = await db("users").where({ id: req.params.id }).del();
+    if (!count) return res.status(404).json({ error: "Not found" });
+    res.status(204).send();
+  } catch (e) {
+    res.status(400).json({ error: "Failed to delete user" });
+  }
+});
 
-    const rows = await knex("dispatch as d")
-      .leftJoin("vehicles as v", "v.id", "d.vehicle_id")
-      .leftJoin("drivers as dr", "dr.id", "d.driver_id")
-      .leftJoin("users as u", "u.id", "d.requested_by_user_id")
-      .modify((qb) => {
-        if (status) qb.where("d.status", status);
-        if (requested_by_user_id)
-          qb.where("d.requested_by_user_id", requested_by_user_id);
-        if (vehicle_id) qb.where("d.vehicle_id", vehicle_id);
-        if (driver_id) qb.where("d.driver_id", driver_id);
-      })
-      .select(
-        "d.*",
-        "v.bumper_number",
-        "v.type as vehicle_type",
-        knex.raw("dr.rank || ' ' || dr.last_name as driver_name"),
-        "u.name as requested_by_name"
-      )
-      .orderBy("d.start_time", "desc");
+// ===========================================================
+// DRIVERS
+// ===========================================================
+app.get("/drivers", async (_req, res) => {
+  try {
+    const rows = await db("drivers").select("*").orderBy("id");
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: "Failed to fetch drivers" });
+  }
+});
 
-    res.json({ data: rows });
-  })
-);
+app.get("/drivers/:id", async (req, res) => {
+  try {
+    const row = await db("drivers").where({ id: req.params.id }).first();
+    if (!row) return res.status(404).json({ error: "Not found" });
+    res.json(row);
+  } catch (e) {
+    res.status(500).json({ error: "Failed to fetch driver" });
+  }
+});
 
-//post dispatch
-app.post(
-  "/dispatch",
-  asyncH(async (req, res) => {
-    const body = req.body || {};
-    requireFields(body, [
-      "vehicle_id",
-      "driver_id",
-      "requested_by_user_id",
-      "start_time",
-      "end_time",
-      "destination",
-      "purpose",
-    ]);
+app.post("/drivers", async (req, res) => {
+  try {
+    const { license_number, status, first_name, last_name, company } = req.body;
+    const [created] = await db("drivers")
+      .insert({ license_number, status, first_name, last_name, company })
+      .returning("*");
+    res.status(201).json(created);
+  } catch (e) {
+    res.status(400).json({ error: "Failed to create driver" });
+  }
+});
 
-    const { vehicle_id, start_time, end_time } = body;
+app.patch("/drivers/:id", async (req, res) => {
+  try {
+    const [updated] = await db("drivers")
+      .where({ id: req.params.id })
+      .update(req.body)
+      .returning("*");
+    if (!updated) return res.status(404).json({ error: "Not found" });
+    res.json(updated);
+  } catch (e) {
+    res.status(400).json({ error: "Failed to update driver" });
+  }
+});
 
-    if (new Date(start_time) >= new Date(end_time)) {
-      const err = new Error("start_time must be before end_time");
-      err.status = 400;
-      throw err;
-    }
+app.delete("/drivers/:id", async (req, res) => {
+  try {
+    const count = await db("drivers").where({ id: req.params.id }).del();
+    if (!count) return res.status(404).json({ error: "Not found" });
+    res.status(204).send();
+  } catch (e) {
+    res.status(400).json({ error: "Failed to delete driver" });
+  }
+});
 
-    //404 error if vic is not avail or serviceable
-    const vehicle = await knex("vehicles").where({ id: vehicle_id }).first();
-    if (!vehicle) {
-      const err = new Error("Vehicle not found");
-      err.status = 404;
-      throw err;
-    }
-    if (!vehicle.is_serviceable) {
-      const err = new Error("Vehicle is not serviceable");
-      err.status = 400;
-      throw err;
-    }
+// Driver qualifications (join table)
+app.get("/drivers/:id/qualifications", async (req, res) => {
+  try {
+    const rows = await db("qualifications_drivers as qd")
+      .join("qualifications as q", "qd.qualification_id", "q.id")
+      .select("q.id", "q.qualification")
+      .where("qd.driver_id", req.params.id)
+      .orderBy("q.qualification");
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: "Failed to fetch driver qualifications" });
+  }
+});
 
-    const created = await knex("dispatch").insert(
-      {
-        vehicle_id: body.vehicle_id,
-        driver_id: body.driver_id,
-        requested_by_user_id: body.requested_by_user_id,
-        start_time: body.start_time,
-        end_time: body.end_time,
-        destination: body.destination,
-        purpose: body.purpose,
-        status: "PENDING",
-      },
-      ["*"]
-    );
+app.post("/drivers/:id/qualifications", async (req, res) => {
+  try {
+    const { qualification_id } = req.body;
+    const [created] = await db("qualifications_drivers")
+      .insert({ driver_id: req.params.id, qualification_id })
+      .returning("*");
+    res.status(201).json(created);
+  } catch (e) {
+    res.status(400).json({ error: "Failed to add qualification to driver" });
+  }
+});
 
-    res.status(201).json({ data: created[0] });
-  })
-);
-
-app.put(
-  "/dispatch/:id/approve",
-  asyncH(async (req, res) => {
-    const id = Number(req.params.id);
-    const existing = await knex("dispatch").where({ id }).first();
-    if (!existing) {
-      const err = new Error("Dispatch not found");
-      err.status = 404;
-      throw err;
-    }
-
-    if (existing.status !== "PENDING") {
-      const err = new Error("Only PENDING requests can be approved");
-      err.status = 400;
-      throw err;
-    }
-
-    const overlap = await hasOverlap({
-      vehicle_id: existing.vehicle_id,
-      start_time: existing.start_time,
-      end_time: existing.end_time,
-      excludeId: id,
-    });
-    if (overlap) {
-      const err = new Error("Vehicle already booked in that window");
-      err.status = 409;
-      throw err;
-    }
-
-    const patch = {
-      status: "APPROVED",
-    };
-
-    const updated = await knex("dispatch").where({ id }).update(patch, ["*"]);
-    res.json({ data: updated[0] });
-  })
-);
-
-app.put(
-  "/dispatch/:id/deny",
-  asyncH(async (req, res) => {
-    const id = Number(req.params.id);
-    const existing = await knex("dispatch").where({ id }).first();
-    if (!existing) {
-      const err = new Error("Dispatch not found");
-      err.status = 404;
-      throw err;
-    }
-    if (existing.status !== "PENDING") {
-      const err = new Error("Only PENDING requests can be denied");
-      err.status = 400;
-      throw err;
-    }
-    const updated = await knex("dispatch")
-      .where({ id })
-      .update({ status: "DENIED", updated_at: knex.fn.now() }, ["*"]);
-    res.json({ data: updated[0] });
-  })
-);
-
-app.put(
-  "/dispatch/:id/complete",
-  asyncH(async (req, res) => {
-    const id = Number(req.params.id);
-    const existing = await knex("dispatch").where({ id }).first();
-    if (!existing) {
-      const err = new Error("Dispatch not found");
-      err.status = 404;
-      throw err;
-    }
-    if (existing.status !== "APPROVED") {
-      const err = new Error("Only APPROVED dispatches can be completed");
-      err.status = 400;
-      throw err;
-    }
-
-    const updated = await knex("dispatch").where({ id }).update(patch, ["*"]);
-    res.json({ data: updated[0] });
-  })
-);
-
-//delete dispatch
 app.delete(
-  "/dispatch/:id",
-  asyncH(async (req, res) => {
-    const id = Number(req.params.id);
-    const existing = await knex("dispatch").where({ id }).first();
-    if (!existing) {
-      const err = new Error("Dispatch not found");
-      err.status = 404;
-      throw err;
+  "/drivers/:id/qualifications/:qualification_id",
+  async (req, res) => {
+    try {
+      const count = await db("qualifications_drivers")
+        .where({
+          driver_id: req.params.id,
+          qualification_id: req.params.qualification_id,
+        })
+        .del();
+      if (!count) return res.status(404).json({ error: "Not found" });
+      res.status(204).send();
+    } catch (e) {
+      res
+        .status(400)
+        .json({ error: "Failed to remove qualification from driver" });
     }
-    if (existing.status !== "PENDING") {
-      const err = new Error("Only PENDING requests can be cancelled");
-      err.status = 400;
-      throw err;
-    }
-    await knex("dispatch")
-      .where({ id })
-      .update({ status: "CANCELLED", updated_at: knex.fn.now() });
-    res.status(204).end();
-  })
+  }
 );
 
-// Error handler
-app.use((err, _req, res, _next) => {
-  console.error(err);
-  const status = err.status || 500;
-  res.status(status).json({ error: err.message || "Server error" });
+// ===========================================================
+// VEHICLES
+// ===========================================================
+app.get("/vehicles", async (_req, res) => {
+  try {
+    const rows = await db("vehicles").select("*").orderBy("id");
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: "Failed to fetch vehicles" });
+  }
 });
 
-//boot server
-app.listen(port, () => {
-  console.log(`Your Knex + Express app running on http://localhost:${port}`);
+app.get("/vehicles/:id", async (req, res) => {
+  try {
+    const row = await db("vehicles").where({ id: req.params.id }).first();
+    if (!row) return res.status(404).json({ error: "Not found" });
+    res.json(row);
+  } catch (e) {
+    res.status(500).json({ error: "Failed to fetch vehicle" });
+  }
 });
+
+app.post("/vehicles", async (req, res) => {
+  try {
+    const { type, callsign, company, status } = req.body;
+    const [created] = await db("vehicles")
+      .insert({ type, callsign, company, status })
+      .returning("*");
+    res.status(201).json(created);
+  } catch (e) {
+    res.status(400).json({ error: "Failed to create vehicle" });
+  }
+});
+
+app.patch("/vehicles/:id", async (req, res) => {
+  try {
+    const [updated] = await db("vehicles")
+      .where({ id: req.params.id })
+      .update(req.body)
+      .returning("*");
+    if (!updated) return res.status(404).json({ error: "Not found" });
+    res.json(updated);
+  } catch (e) {
+    res.status(400).json({ error: "Failed to update vehicle" });
+  }
+});
+
+app.delete("/vehicles/:id", async (req, res) => {
+  try {
+    const count = await db("vehicles").where({ id: req.params.id }).del();
+    if (!count) return res.status(404).json({ error: "Not found" });
+    res.status(204).send();
+  } catch (e) {
+    res.status(400).json({ error: "Failed to delete vehicle" });
+  }
+});
+
+// ===========================================================
+// QUALIFICATIONS (catalog)
+// ===========================================================
+app.get("/qualifications", async (_req, res) => {
+  try {
+    const rows = await db("qualifications").select("*").orderBy("id");
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: "Failed to fetch qualifications" });
+  }
+});
+
+app.post("/qualifications", async (req, res) => {
+  try {
+    const { qualification } = req.body;
+    const [created] = await db("qualifications")
+      .insert({ qualification })
+      .returning("*");
+    res.status(201).json(created);
+  } catch (e) {
+    res.status(400).json({ error: "Failed to create qualification" });
+  }
+});
+
+app.delete("/qualifications/:id", async (req, res) => {
+  try {
+    const count = await db("qualifications").where({ id: req.params.id }).del();
+    if (!count) return res.status(404).json({ error: "Not found" });
+    res.status(204).send();
+  } catch (e) {
+    res.status(400).json({ error: "Failed to delete qualification" });
+  }
+});
+
+// ===========================================================
+// DISPATCH
+// ===========================================================
+
+// List all dispatch records (optionally filter active)
+app.get("/dispatch", async (req, res) => {
+  try {
+    const { active } = req.query;
+    const q = db("dispatch as d")
+      .leftJoin("vehicles as v", "d.vehicle_id", "v.id")
+      .leftJoin("drivers as dr", "d.driver_id", "dr.id")
+      .leftJoin("users as u", "d.user_id", "u.id")
+      .select(
+        "d.id",
+        "d.vehicle_id",
+        "d.driver_id",
+        "d.user_id",
+        "d.sign_out",
+        "d.sign_in",
+        "v.callsign as vehicle_callsign",
+        "v.type as vehicle_type",
+        "dr.first_name as driver_first_name",
+        "dr.last_name as driver_last_name",
+        "u.username as dispatcher_username"
+      )
+      .orderBy("d.id", "desc");
+
+    if (active === "true") q.whereNull("d.sign_in");
+    const rows = await q;
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: "Failed to fetch dispatch records" });
+  }
+});
+
+// Sign a vehicle OUT (create a dispatch row)
+app.post("/dispatch/signout", async (req, res) => {
+  try {
+    const { vehicle_id, driver_id, user_id } = req.body;
+
+    // Optional guard: prevent double-signout on same vehicle
+    const existing = await db("dispatch")
+      .where({ vehicle_id })
+      .whereNull("sign_in")
+      .first();
+    if (existing)
+      return res
+        .status(409)
+        .json({ error: "Vehicle already dispatched (no sign-in yet)" });
+
+    const [created] = await db("dispatch")
+      .insert({
+        vehicle_id,
+        driver_id,
+        user_id,
+        sign_out: now(),
+        sign_in: null,
+      })
+      .returning("*");
+
+    res.status(201).json(created);
+  } catch (e) {
+    res.status(400).json({ error: "Failed to sign out vehicle" });
+  }
+});
+
+// Sign a vehicle IN (close a dispatch row)
+app.patch("/dispatch/:id/signin", async (req, res) => {
+  try {
+    const [updated] = await db("dispatch")
+      .where({ id: req.params.id })
+      .whereNull("sign_in")
+      .update({ sign_in: now() })
+      .returning("*");
+
+    if (!updated)
+      return res.status(404).json({ error: "Active dispatch not found" });
+    res.json(updated);
+  } catch (e) {
+    res.status(400).json({ error: "Failed to sign in vehicle" });
+  }
+});
+
+// Convenience: who is currently out, with qualifications for the driver
+app.get("/dispatch/active/details", async (_req, res) => {
+  try {
+    const rows = await db("dispatch as d")
+      .join("vehicles as v", "d.vehicle_id", "v.id")
+      .join("drivers as dr", "d.driver_id", "dr.id")
+      .leftJoin("users as u", "d.user_id", "u.id")
+      .whereNull("d.sign_in")
+      .select(
+        "d.id as dispatch_id",
+        "d.sign_out",
+        "v.id as vehicle_id",
+        "v.callsign",
+        "v.type",
+        "v.company as vehicle_company",
+        "dr.id as driver_id",
+        "dr.first_name",
+        "dr.last_name",
+        "dr.status as driver_status",
+        "u.username as dispatcher_username"
+      )
+      .orderBy("d.sign_out", "desc");
+
+    // Attach quals
+    const driverIds = rows.map((r) => r.driver_id);
+    const quals = await db("qualifications_drivers as qd")
+      .join("qualifications as q", "qd.qualification_id", "q.id")
+      .whereIn("qd.driver_id", driverIds)
+      .select("qd.driver_id", "q.qualification");
+
+    const grouped = driverIds.reduce((acc, id) => {
+      acc[id] = [];
+      return acc;
+    }, {});
+    for (const q of quals) grouped[q.driver_id]?.push(q.qualification);
+
+    res.json(
+      rows.map((r) => ({
+        ...r,
+        qualifications: grouped[r.driver_id] || [],
+      }))
+    );
+  } catch (e) {
+    res.status(500).json({ error: "Failed to fetch active dispatch details" });
+  }
+});
+
+// ===========================================================
+// SERVER START
+// ===========================================================
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(
+      `API running on port ${PORT} (env=${
+        process.env.NODE_ENV || "development"
+      })`
+    );
+  });
+}
+
+module.exports = app;
+
+// -----------------------------------------------------------
+// HEALTHCHECK
+// -----------------------------------------------------------
+app.get("/health", async (req, res) => {
+  try {
+    await db.select(db.raw("1+1 as ok")).first();
+    res.json({ ok: true, env: process.env.NODE_ENV || "development" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "DB not reachable" });
+  }
+});
+
+// ===========================================================
+// USERS
+// ===========================================================
+app.get("/users", async (_req, res) => {
+  try {
+    const rows = await db("users").select("*").orderBy("id");
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: "Failed to fetch users" });
+  }
+});
+
+app.get("/users/:id", async (req, res) => {
+  try {
+    const row = await db("users").where({ id: req.params.id }).first();
+    if (!row) return res.status(404).json({ error: "Not found" });
+    res.json(row);
+  } catch (e) {
+    res.status(500).json({ error: "Failed to fetch user" });
+  }
+});
+
+app.post("/users", async (req, res) => {
+  try {
+    const {
+      first_name,
+      last_name,
+      company,
+      platoon,
+      role,
+      username,
+      password,
+    } = req.body;
+    const [created] = await db("users")
+      .insert({
+        first_name,
+        last_name,
+        company,
+        platoon,
+        role,
+        username,
+        password,
+      })
+      .returning("*");
+    res.status(201).json(created);
+  } catch (e) {
+    res.status(400).json({ error: "Failed to create user" });
+  }
+});
+
+app.patch("/users/:id", async (req, res) => {
+  try {
+    const [updated] = await db("users")
+      .where({ id: req.params.id })
+      .update(req.body)
+      .returning("*");
+    if (!updated) return res.status(404).json({ error: "Not found" });
+    res.json(updated);
+  } catch (e) {
+    res.status(400).json({ error: "Failed to update user" });
+  }
+});
+
+app.delete("/users/:id", async (req, res) => {
+  try {
+    const count = await db("users").where({ id: req.params.id }).del();
+    if (!count) return res.status(404).json({ error: "Not found" });
+    res.status(204).send();
+  } catch (e) {
+    res.status(400).json({ error: "Failed to delete user" });
+  }
+});
+
+// ===========================================================
+// DRIVERS
+// ===========================================================
+app.get("/drivers", async (_req, res) => {
+  try {
+    const rows = await db("drivers").select("*").orderBy("id");
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: "Failed to fetch drivers" });
+  }
+});
+
+app.get("/drivers/:id", async (req, res) => {
+  try {
+    const row = await db("drivers").where({ id: req.params.id }).first();
+    if (!row) return res.status(404).json({ error: "Not found" });
+    res.json(row);
+  } catch (e) {
+    res.status(500).json({ error: "Failed to fetch driver" });
+  }
+});
+
+app.post("/drivers", async (req, res) => {
+  try {
+    const { license_number, status, first_name, last_name, company } = req.body;
+    const [created] = await db("drivers")
+      .insert({ license_number, status, first_name, last_name, company })
+      .returning("*");
+    res.status(201).json(created);
+  } catch (e) {
+    res.status(400).json({ error: "Failed to create driver" });
+  }
+});
+
+app.patch("/drivers/:id", async (req, res) => {
+  try {
+    const [updated] = await db("drivers")
+      .where({ id: req.params.id })
+      .update(req.body)
+      .returning("*");
+    if (!updated) return res.status(404).json({ error: "Not found" });
+    res.json(updated);
+  } catch (e) {
+    res.status(400).json({ error: "Failed to update driver" });
+  }
+});
+
+app.delete("/drivers/:id", async (req, res) => {
+  try {
+    const count = await db("drivers").where({ id: req.params.id }).del();
+    if (!count) return res.status(404).json({ error: "Not found" });
+    res.status(204).send();
+  } catch (e) {
+    res.status(400).json({ error: "Failed to delete driver" });
+  }
+});
+
+// Driver qualifications (join table)
+app.get("/drivers/:id/qualifications", async (req, res) => {
+  try {
+    const rows = await db("qualifications_drivers as qd")
+      .join("qualifications as q", "qd.qualification_id", "q.id")
+      .select("q.id", "q.qualification")
+      .where("qd.driver_id", req.params.id)
+      .orderBy("q.qualification");
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: "Failed to fetch driver qualifications" });
+  }
+});
+
+app.post("/drivers/:id/qualifications", async (req, res) => {
+  try {
+    const { qualification_id } = req.body;
+    const [created] = await db("qualifications_drivers")
+      .insert({ driver_id: req.params.id, qualification_id })
+      .returning("*");
+    res.status(201).json(created);
+  } catch (e) {
+    res.status(400).json({ error: "Failed to add qualification to driver" });
+  }
+});
+
+app.delete(
+  "/drivers/:id/qualifications/:qualification_id",
+  async (req, res) => {
+    try {
+      const count = await db("qualifications_drivers")
+        .where({
+          driver_id: req.params.id,
+          qualification_id: req.params.qualification_id,
+        })
+        .del();
+      if (!count) return res.status(404).json({ error: "Not found" });
+      res.status(204).send();
+    } catch (e) {
+      res
+        .status(400)
+        .json({ error: "Failed to remove qualification from driver" });
+    }
+  }
+);
+
+// ===========================================================
+// VEHICLES
+// ===========================================================
+app.get("/vehicles", async (_req, res) => {
+  try {
+    const rows = await db("vehicles").select("*").orderBy("id");
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: "Failed to fetch vehicles" });
+  }
+});
+
+app.get("/vehicles/:id", async (req, res) => {
+  try {
+    const row = await db("vehicles").where({ id: req.params.id }).first();
+    if (!row) return res.status(404).json({ error: "Not found" });
+    res.json(row);
+  } catch (e) {
+    res.status(500).json({ error: "Failed to fetch vehicle" });
+  }
+});
+
+app.post("/vehicles", async (req, res) => {
+  try {
+    const { type, callsign, company, status } = req.body;
+    const [created] = await db("vehicles")
+      .insert({ type, callsign, company, status })
+      .returning("*");
+    res.status(201).json(created);
+  } catch (e) {
+    res.status(400).json({ error: "Failed to create vehicle" });
+  }
+});
+
+app.patch("/vehicles/:id", async (req, res) => {
+  try {
+    const [updated] = await db("vehicles")
+      .where({ id: req.params.id })
+      .update(req.body)
+      .returning("*");
+    if (!updated) return res.status(404).json({ error: "Not found" });
+    res.json(updated);
+  } catch (e) {
+    res.status(400).json({ error: "Failed to update vehicle" });
+  }
+});
+
+app.delete("/vehicles/:id", async (req, res) => {
+  try {
+    const count = await db("vehicles").where({ id: req.params.id }).del();
+    if (!count) return res.status(404).json({ error: "Not found" });
+    res.status(204).send();
+  } catch (e) {
+    res.status(400).json({ error: "Failed to delete vehicle" });
+  }
+});
+
+// ===========================================================
+// QUALIFICATIONS (catalog)
+// ===========================================================
+app.get("/qualifications", async (_req, res) => {
+  try {
+    const rows = await db("qualifications").select("*").orderBy("id");
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: "Failed to fetch qualifications" });
+  }
+});
+
+app.post("/qualifications", async (req, res) => {
+  try {
+    const { qualification } = req.body;
+    const [created] = await db("qualifications")
+      .insert({ qualification })
+      .returning("*");
+    res.status(201).json(created);
+  } catch (e) {
+    res.status(400).json({ error: "Failed to create qualification" });
+  }
+});
+
+app.delete("/qualifications/:id", async (req, res) => {
+  try {
+    const count = await db("qualifications").where({ id: req.params.id }).del();
+    if (!count) return res.status(404).json({ error: "Not found" });
+    res.status(204).send();
+  } catch (e) {
+    res.status(400).json({ error: "Failed to delete qualification" });
+  }
+});
+
+// ===========================================================
+// DISPATCH
+// ===========================================================
+
+// List all dispatch records (optionally filter active)
+app.get("/dispatch", async (req, res) => {
+  try {
+    const { active } = req.query;
+    const q = db("dispatch as d")
+      .leftJoin("vehicles as v", "d.vehicle_id", "v.id")
+      .leftJoin("drivers as dr", "d.driver_id", "dr.id")
+      .leftJoin("users as u", "d.user_id", "u.id")
+      .select(
+        "d.id",
+        "d.vehicle_id",
+        "d.driver_id",
+        "d.user_id",
+        "d.sign_out",
+        "d.sign_in",
+        "v.callsign as vehicle_callsign",
+        "v.type as vehicle_type",
+        "dr.first_name as driver_first_name",
+        "dr.last_name as driver_last_name",
+        "u.username as dispatcher_username"
+      )
+      .orderBy("d.id", "desc");
+
+    if (active === "true") q.whereNull("d.sign_in");
+    const rows = await q;
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: "Failed to fetch dispatch records" });
+  }
+});
+
+// Sign a vehicle OUT (create a dispatch row)
+app.post("/dispatch/signout", async (req, res) => {
+  try {
+    const { vehicle_id, driver_id, user_id } = req.body;
+
+    // Optional guard: prevent double-signout on same vehicle
+    const existing = await db("dispatch")
+      .where({ vehicle_id })
+      .whereNull("sign_in")
+      .first();
+    if (existing)
+      return res
+        .status(409)
+        .json({ error: "Vehicle already dispatched (no sign-in yet)" });
+
+    const [created] = await db("dispatch")
+      .insert({
+        vehicle_id,
+        driver_id,
+        user_id,
+        sign_out: now(),
+        sign_in: null,
+      })
+      .returning("*");
+
+    res.status(201).json(created);
+  } catch (e) {
+    res.status(400).json({ error: "Failed to sign out vehicle" });
+  }
+});
+
+// Sign a vehicle IN (close a dispatch row)
+app.patch("/dispatch/:id/signin", async (req, res) => {
+  try {
+    const [updated] = await db("dispatch")
+      .where({ id: req.params.id })
+      .whereNull("sign_in")
+      .update({ sign_in: now() })
+      .returning("*");
+
+    if (!updated)
+      return res.status(404).json({ error: "Active dispatch not found" });
+    res.json(updated);
+  } catch (e) {
+    res.status(400).json({ error: "Failed to sign in vehicle" });
+  }
+});
+
+// Convenience: who is currently out, with qualifications for the driver
+app.get("/dispatch/active/details", async (_req, res) => {
+  try {
+    const rows = await db("dispatch as d")
+      .join("vehicles as v", "d.vehicle_id", "v.id")
+      .join("drivers as dr", "d.driver_id", "dr.id")
+      .leftJoin("users as u", "d.user_id", "u.id")
+      .whereNull("d.sign_in")
+      .select(
+        "d.id as dispatch_id",
+        "d.sign_out",
+        "v.id as vehicle_id",
+        "v.callsign",
+        "v.type",
+        "v.company as vehicle_company",
+        "dr.id as driver_id",
+        "dr.first_name",
+        "dr.last_name",
+        "dr.status as driver_status",
+        "u.username as dispatcher_username"
+      )
+      .orderBy("d.sign_out", "desc");
+
+    // Attach quals
+    const driverIds = rows.map((r) => r.driver_id);
+    const quals = await db("qualifications_drivers as qd")
+      .join("qualifications as q", "qd.qualification_id", "q.id")
+      .whereIn("qd.driver_id", driverIds)
+      .select("qd.driver_id", "q.qualification");
+
+    const grouped = driverIds.reduce((acc, id) => {
+      acc[id] = [];
+      return acc;
+    }, {});
+    for (const q of quals) grouped[q.driver_id]?.push(q.qualification);
+
+    res.json(
+      rows.map((r) => ({
+        ...r,
+        qualifications: grouped[r.driver_id] || [],
+      }))
+    );
+  } catch (e) {
+    res.status(500).json({ error: "Failed to fetch active dispatch details" });
+  }
+});
+
+// ===========================================================
+// SERVER START
+// ===========================================================
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(
+      `API running on port ${PORT} (env=${
+        process.env.NODE_ENV || "development"
+      })`
+    );
+  });
+}
 
 module.exports = app;
