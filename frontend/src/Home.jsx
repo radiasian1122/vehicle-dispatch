@@ -9,12 +9,13 @@ export default function Dispatch() {
       .then((data) => data.json())
       .then((json) => {
         setDispatches(json);
+        console.log(json)
       });
-  });
+  }, []);
 
   if (dispatches.length > 0) {
-    return <>Dispatch information</>;
+    return (<>Dispatch information</>);
   } else {
-    return <>No vehicles currently dispatched. Add one to get started!</>;
+    return (<>No vehicles currently dispatched. Add one to get started!</>);
   }
 }

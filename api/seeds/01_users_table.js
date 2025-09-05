@@ -1,13 +1,23 @@
-const { faker } = require("@faker-js/faker");
+const {faker} = require("@faker-js/faker");
 /**
  * @param { import("knex").Knex } knex
- * @returns { Promise<void> } 
+ * @returns { Promise<void> }
  */
-exports.seed = async function(knex) {
-  // Deletes ALL existing entries
-  await knex('users').del()
+exports.seed = async function (knex) {
+    // Deletes ALL existing entries
+    await knex('users').del()
+
+    await knex('users').insert({
+        first_name: "Alec",
+        last_name: "Somers",
+        company: 'D',
+        platoon: 'myplatoon',
+        role: 'user',
+        username: 'alec-somers',
+        password: "password"
+    })
     let users = [];
-    for (let i = 0; i < 100; i++){
+    for (let i = 0; i < 100; i++) {
         const fakerFirstName = faker.person.firstName();
         const fakerLastName = faker.person.lastName();
         let currentUser = {
@@ -16,11 +26,11 @@ exports.seed = async function(knex) {
             company: 'C',
             platoon: `${faker.number.int({min: 1, max: 3})}C`,
             role: 'user',
-            username:`${fakerFirstName.toLowerCase()}-${fakerLastName.toLowerCase()}`,
+            username: `${fakerFirstName.toLowerCase()}-${fakerLastName.toLowerCase()}`,
             password: 'password'
         }
 
         users.push(currentUser);
     }
-  await knex('users').insert(users);
+    await knex('users').insert(users);
 };

@@ -3,25 +3,31 @@ import {useState, useEffect} from 'react';
 import {useNavigate} from 'react-router-dom';
 
 
+
+
 function Login() {
+    const navigate = useNavigate()
 
+    const [ validCredentials, setValidCredentials ] = useState("waiting")
 
-    function handleSubmit(e) {
+   function handleSubmit(e) {
         e.preventDefault();
         const username = e.target[0].value
         const password = e.target[1].value
 
+        console.log(e.target[0].value)
+        console.log(e.target[1].value)
 
         fetch('http://localhost:8080/users')
             .then(data => data.json())
             .then(users => {
                 for (let user of users) {
                     if (user.username.toLowerCase() === username && user.password.toLowerCase() === password){
-                        return;
-                    }else {
+                        navigate('/home')
                         return;
                     }
                 }
+                setValidCredentials("denied")
             })
 
 
@@ -35,9 +41,12 @@ function Login() {
                     <h1>Vehicle Tracker</h1>
                 </header>
                 <div className="form-container flex">
-                    <form className="login-form flex">
+                    <form onSubmit={(e) => handleSubmit(e)} className="login-form flex">
+                        { (validCredentials === "denied" &&(
+                        <h1>User not found</h1>
+                    ))}
                         <div>
-                            <label htmlFor="username-input form-label">Username:</label>
+                            <label  htmlFor="username-input form-label">Username:</label>
                         </div>
                         <input type="text" id="username-input" className="form-input"/>
 
@@ -46,9 +55,10 @@ function Login() {
                         </div>
                         <input type="password" id="password-input" className="form-input"/>
 
-                        <button type="submit" className="login-button" onSubmit={(e) => handleSubmit(e)}>Login</button>
+                        <button type="submit" className="login-button">Login</button>
                     </form>
                 </div>
+
             </div>
         </>
     )
