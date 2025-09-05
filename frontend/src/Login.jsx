@@ -15,8 +15,7 @@ function Login() {
         const username = e.target[0].value
         const password = e.target[1].value
 
-        console.log(e.target[0].value)
-        console.log(e.target[1].value)
+        localStorage.setItem('username', username);
 
         fetch('http://localhost:8080/users')
             .then(data => data.json())

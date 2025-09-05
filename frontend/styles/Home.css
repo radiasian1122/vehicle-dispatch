@@ -1,0 +1,60 @@
+.dispatch-header {
+    justify-content: space-between;
+    width: 90%;
+    padding: 10px 30px 0 30px;
+    align-items: center;
+
+}
+
+.dispatch-button {
+    height: 50px;
+    width: 225px;
+    background-color: #799ced;
+    color: white;
+    font-size: large;
+}
+
+.main-container {
+    flex-direction: column;
+    gap: 0;
+    margin-top: 75px;
+    width: 100%;
+    justify-content: center;
+}
+
+.dispatch-overview {
+    flex-direction:column;
+    width: 80%;
+    border: black 5px solid;
+    background-color: white;
+
+}
+
+.dispatch-table-header {
+    font-size: 40px;
+    font-weight: 300;
+}
+
+.dispatch-table {
+    background-color: gray;
+}
+
+.dispatch-table th,
+.dispatch-table td {
+    border: 1px solid #ddd;
+    padding: 12px 8px;
+    text-align: left;
+}
+
+.dispatch-table thead th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.dispatch-table tfoot th,
+.dispatch-table tfoot td {
+    background-color: #e9ecef;
+    font-weight: bold;
+    border-top: 2px solid #dee2e6;
+}
