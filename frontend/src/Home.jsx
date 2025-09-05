@@ -12,7 +12,7 @@ export default function Dispatch() {
       .then((json) => {
         setDispatches(json);
       });
-  });
+  }, []);
 
   if (dispatches.length > 0) {
     return (
