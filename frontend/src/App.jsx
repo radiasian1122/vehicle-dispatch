@@ -9,7 +9,7 @@ function App() {
   return (
     <>
         <Routes>
-            <Route path='/login' element={<Login/>} />
+            <Route index element={<Login/>} />
         </Routes>
     </>
   )

@@ -47,13 +47,13 @@ app.get("/", (_req, res) => {
 });
 
 //users list
-app.get(
-  "/users",
-  asyncH(async (_req, res) => {
-    const rows = await knex("users").select("*").orderBy("id", "asc");
-    res.json({ rows });
-  })
-);
+app.get('/users', (req, res) => {
+    knex('users')
+        .select('*')
+        .then( users => {
+            res.status(200).json(users);
+        })
+})
 
 //driver's list
 app.get(
