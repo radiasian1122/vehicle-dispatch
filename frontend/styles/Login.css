@@ -20,12 +20,13 @@ h1 {
     display: flex;
 }
 
-.main-container {
+.main-container-login {
     flex-direction: column;
     justify-content: center;
     align-items: center;
     height: 100%;
     gap: 100px;
+    margin: 0;
 }
 
 .main-header {

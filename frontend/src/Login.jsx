@@ -35,7 +35,7 @@ function Login() {
 
     return (
         <>
-            <div className="main-container flex">
+            <div className="main-container-login flex">
                 <header className="main-header flex">
                     <h1>Vehicle Tracker</h1>
                 </header>
