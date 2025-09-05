@@ -53,6 +53,10 @@ app.get('/users', (req, res) => {
         .then(users => {
             res.status(200).json(users);
         })
+        .catch( err => {
+            if (err) console.error(err);
+            res.status(400).json("Couldn't fetch users")
+        })
 })
 
 //driver's list
