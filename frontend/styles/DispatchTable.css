@@ -1,0 +1,31 @@
+.dispatch-container {
+  width: 100%;
+  margin: 2rem auto;
+  border-collapse: collapse;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.dispatch-container th,
+.dispatch-container td {
+  padding: 1rem 1.5rem;
+  text-align: left;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.dispatch-container th {
+  background: #f7f7f7;
+  font-weight: 600;
+  color: #333;
+}
+
+.dispatch-container tr:last-child td {
+  border-bottom: none;
+}
+
+.dispatch-container tr:hover {
+  background: #f5faff;
+  transition: background 0.2s;
+}
