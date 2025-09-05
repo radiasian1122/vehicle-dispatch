@@ -14,12 +14,13 @@
     font-size: large;
 }
 
-.main-container {
+.main-container-home {
     flex-direction: column;
     gap: 0;
     margin-top: 75px;
     width: 100%;
     justify-content: center;
+    align-items: center;
 }
 
 .dispatch-overview {

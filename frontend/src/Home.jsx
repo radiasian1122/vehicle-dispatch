@@ -4,6 +4,8 @@ import "../styles/DispatchTable.css";
 import "../styles/Home.css";
 
 export default function Dispatch() {
+    const navigate = useNavigate();
+
     const [dispatches, setDispatches] = useState([]);
 
     useEffect(() => {
@@ -20,12 +22,12 @@ export default function Dispatch() {
                 <header className="main-header flex">
                     <h1>{localStorage.getItem('username')}</h1>
                 </header>
-                <div className='main-container flex'>
+                <div className='main-container-home flex'>
                     <div className="dispatch-overview flex">
 
                         <div className="dispatch-header flex">
                             <h2 className="dispatch-table-header">Dispatch Overview</h2>
-                            <button className="dispatch-button">Add Dispatch</button>
+                            <button className="dispatch-button" onClick={ () => navigate('/dispatch-form')}>Add Dispatch</button>
                         </div>
 
                                 <table className="dispatch-table">

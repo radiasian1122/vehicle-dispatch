@@ -1,0 +1,49 @@
+main {
+    flex-direction: column;
+    height: 100%;
+    justify-content: center;
+    align-items:center;
+}
+
+.main-dispatch-form-container {
+    flex-direction: column;
+    width: 100%;
+    background-color: white;
+}
+
+.vehicle-list-header {
+    justify-content: space-between;
+    padding: 20px;
+    width: 90%;
+}
+
+.vehicle-list-header button {
+    height: 50px;
+    width: 200px;
+    background-color: #799ced;
+    border: none;
+    font-size: large;
+    color: white;
+    font-weight: 300;
+}
+
+button:hover {
+    cursor: pointer;
+}
+
+.vehicle-list-footer {
+    justify-content: end;
+    padding: 15px;
+}
+
+.vehicle-list-footer button {
+    height: 50px;
+    width: 200px;
+    background-color: #799ced;
+    border: none;
+    font-size: large;
+    color: white;
+    font-weight: 300;
+    margin-top: 20px;
+    margin-right: 50px;
+}
