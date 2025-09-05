@@ -116,6 +116,28 @@ app.get("/dispatch", (req, res) => {
         });
 });
 
+app.get("/dispatch/:userId", (req, res) => {
+    knex("dispatch as I")
+        .join("vehicles as V", "V.id", "I.vehicle_id")
+        .join("drivers as D", "D.id", "I.driver_id")
+        .select(
+            "V.type",
+            "V.callsign",
+            "D.first_name",
+            "I.sign_out",
+            "I.sign_in",
+            "I.status"
+        )
+        .where("I.user_id", req.params.userId)
+        .then((data) => {
+            res.status(200).json(data);
+        })
+        .catch((e) => {
+            if (e) console.error(e);
+            res.status(400).send("Could not fetch dispatches");
+        });
+})
+
 app.get("/drivers/:id", (req, res) => {
     knex("drivers")
         .select("*")
