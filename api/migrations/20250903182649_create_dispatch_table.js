@@ -13,6 +13,7 @@ exports.up = function(knex) {
       table.foreign('driver_id').references('drivers.id').deferrable('deferred')
       table.integer('sign_out')
       table.integer('sign_in')
+      table.string('status')
   })
 };
 
