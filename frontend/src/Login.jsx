@@ -2,7 +2,7 @@ import "../styles/Login.css"
 import {useState, useEffect} from 'react';
 import {useNavigate} from 'react-router-dom';
 
-const [ validCredentials, setValidCredentials] = useState('false');
+
 function Login() {
 
 
@@ -17,10 +17,8 @@ function Login() {
             .then(users => {
                 for (let user of users) {
                     if (user.username.toLowerCase() === username && user.password.toLowerCase() === password){
-                        setValidCredentials("true");
                         return;
                     }else {
-                        setValidCredentials("false")
                         return;
                     }
                 }
@@ -51,9 +49,6 @@ function Login() {
                         <button type="submit" className="login-button" onSubmit={(e) => handleSubmit(e)}>Login</button>
                     </form>
                 </div>
-                {validCredentials && (
-                    <h1>SUCCESS!!</h1>
-                )}
             </div>
         </>
     )
