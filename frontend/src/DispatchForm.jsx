@@ -1,16 +1,24 @@
+import {useState} from 'react';
+import {useNavigate} from 'react-router-dom'
+
+
 import '../styles/dispatchForm.css'
 
 export default function DispatchForm() {
 
+    const [hasItems, setHasItems] = useState(false);
+    const navigate = useNavigate();
+
 
     return (
         <>
+
             <header className="main-header flex">
                 <h1>{localStorage.getItem('username')}</h1>
             </header>
             <main className="main-content flex">
                 <div className="vehicle-list-header flex">
-                    <button className="add-vehicles-button">Add Vehicles</button>
+                    <button onClick={() => navigate('/vehicles')} className="add-vehicles-button">Add Vehicles</button>
                     <button type="submit">Submit</button>
                 </div>
                 <form className="main-dispatch-form-container flex">
@@ -28,13 +36,20 @@ export default function DispatchForm() {
                         </thead>
                         <tbody>
                         <tr>
-                            <th scope="row">Something</th>
-                            <td>1</td>
+                            {hasItems &&
+                                <>
+                                    <th scope="row">Something</th>
+                                    <td>1</td>
 
-                            <td>11</td>
-                            <td>1</td>
-                            <td>1</td>
-                            <td>1</td>
+                                    <td>11</td>
+                                    <td>1</td>
+                                    <td>1</td>
+                                    <td>1</td>
+                                </> ||
+                                <td className="dispatch-form-placeholder">No vehicles added to dispatch</td>
+
+                            }
+
                         </tr>
 
                         </tbody>

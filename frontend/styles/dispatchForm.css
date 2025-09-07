@@ -47,3 +47,10 @@ button:hover {
     margin-top: 20px;
     margin-right: 50px;
 }
+
+.dispatch-form-placeholder {
+    text-align: center;
+    color: white;
+    font-size: 2rem;
+    font-weight: 300;
+}
