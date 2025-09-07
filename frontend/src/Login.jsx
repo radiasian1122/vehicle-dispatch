@@ -36,9 +36,7 @@ function Login() {
     return (
         <>
             <div className="main-container-login flex">
-                <header className="main-header flex">
-                    <h1>Vehicle Tracker</h1>
-                </header>
+
                 <div className="form-container flex">
                     <form onSubmit={(e) => handleSubmit(e)} className="login-form flex">
                         { (validCredentials === "denied" &&(

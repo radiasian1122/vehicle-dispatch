@@ -19,9 +19,7 @@ export default function Dispatch() {
     if (dispatches.length > 0) {
         return (
             <>
-                <header className="main-header flex">
-                    <h1>{localStorage.getItem('username')}</h1>
-                </header>
+
                 <div className='main-container-home flex'>
                     <div className="dispatch-overview flex">
 

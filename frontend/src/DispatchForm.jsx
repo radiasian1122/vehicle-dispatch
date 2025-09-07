@@ -13,9 +13,6 @@ export default function DispatchForm() {
     return (
         <>
 
-            <header className="main-header flex">
-                <h1>{localStorage.getItem('username')}</h1>
-            </header>
             <main className="main-content flex">
                 <div className="vehicle-list-header flex">
                     <button onClick={() => navigate('/vehicles')} className="add-vehicles-button">Add Vehicles</button>
