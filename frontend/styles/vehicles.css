@@ -1,0 +1,41 @@
+.vehicles-component-container {
+    width: 100%;
+    height: 100%;
+    justify-content: center;
+}
+
+.vehicles-component-header {
+    font-weight: 300;
+    text-align: center;
+}
+
+
+.vehicle-list-form {
+    width: 90%;
+    margin: 40px auto;
+    padding: 20px;
+}
+
+.vehicles-component-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.vehicles-component-table thead th {
+    text-align: left;
+    padding: 12px;
+}
+
+.vehicles-component-table tbody tr {
+    height: 50px;
+}
+
+.vehicles-component-table tbody tr:nth-child(odd) {
+    background: #e6e6e6;
+}
+
+input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+}
