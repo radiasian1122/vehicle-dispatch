@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import {useState, useEffect} from 'react';
 import {useNavigate} from 'react-router-dom'
 
 
@@ -9,6 +9,12 @@ export default function DispatchForm() {
     const [hasItems, setHasItems] = useState(false);
     const navigate = useNavigate();
 
+
+    useEffect(() => {
+        if (localStorage.getItem("selectedVehicles")) {
+            setHasItems(true);
+        }
+    }, [])
 
     return (
         <>
