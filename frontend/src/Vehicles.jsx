@@ -1,9 +1,12 @@
 import {useState, useEffect} from 'react';
+import {useNavigate} from 'react-router-dom';
 import "../styles/vehicles.css"
 
 function Vehicles() {
 
     const [vehicleList, setVehicleList] = useState([])
+    const navigate = useNavigate();
+
 
     useEffect(() => {
         fetch('http://localhost:8080/vehicles')
@@ -46,6 +49,10 @@ function Vehicles() {
                     })}
                     </tbody>
                 </table>
+                <button className="vehicles-cancel-button" onClick={(e) => {
+                 e.preventDefault();
+                 navigate('/dispatch-form')
+                }}>Cancel</button>
                 <button className="vehicles-component-button" type="submit">Submit</button>
             </form>
         </main>

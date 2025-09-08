@@ -50,3 +50,14 @@ input[type="checkbox"] {
     font-weight: 300;
     float: right;
 }
+
+.vehicles-cancel-button {
+    background-color: #799ced;
+    border-style: none;
+    height: 50px;
+    width: 200px;
+    color: white;
+    font-weight: 300;
+    float: left;
+    font-size: larger;
+}
