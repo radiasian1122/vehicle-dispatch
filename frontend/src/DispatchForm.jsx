@@ -53,7 +53,10 @@ export default function DispatchForm() {
                     </table>
 
                     <div className="vehicle-list-footer flex">
-                        <button>Cancel</button>
+                        <button onClick={(e) => {
+                            e.preventDefault();
+                            navigate("/home");
+                        }}>Cancel</button>
                     </div>
 
                 </form>

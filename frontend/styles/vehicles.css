@@ -39,3 +39,14 @@ input[type="checkbox"] {
     width: 20px;
     height: 20px;
 }
+
+.vehicles-component-button {
+    background-color: #799ced;
+    border-style: none;
+    height: 50px;
+    width: 200px;
+    font-size: larger;
+    color: white;
+    font-weight: 300;
+    float: right;
+}

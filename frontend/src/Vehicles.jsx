@@ -46,7 +46,7 @@ function Vehicles() {
                     })}
                     </tbody>
                 </table>
-                <button type="submit">Submit</button>
+                <button className="vehicles-component-button" type="submit">Submit</button>
             </form>
         </main>
     )
